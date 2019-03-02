@@ -1,0 +1,90 @@
+#!/bin/bash
+
+function calc_mem()
+{
+    tmp=$1
+    case $UNIT in
+        MB) echo $((tmp*4096/1024/1024)) ;;
+        GB) echo $((tmp*4096/1024/1024/1024)) ;;
+    esac
+}
+
+function usage()
+{
+cat << EOF
+Similar command in Linux.
+Use vm_stat to calculate the memory information. It is not accurate enough.
+
+Usage:
+ free [options]
+
+Options:
+  -m     show output in megabytes
+  -g     show output in gigabytes
+  -h     display this help and exit
+EOF
+}
+
+UNIT=${UNIT:-MB}
+
+while getopts ":mgh" OPTION
+do
+    case $OPTION in
+        m) UNIT=MB ;;
+        g) UNIT=GB ;;
+        h) usage;  exit 0 ;;
+    esac
+done
+
+# works for gnu sed
+read -a vmstat <<< $(vm_stat |gsed -e 's/^.*: \+//;s/.$//' |tail -n +2)
+
+# works for mac build-in sed
+# read -a vmstat <<< $(vm_stat |sed -E 's/^.*: +//;s/.$//' |tail -n +2)
+
+# vm_stat
+# Pages free:
+# Pages active: currently in memory and recently used
+# Pages inactive: not actively used, but recently used
+# Pages speculative:
+# Pages throttled:
+# Pages wired down: also called resident memory, must stay in memory
+# Pages purgeable: can be purged, but can be reactivated to use
+# "Translation faults":
+# Pages copy-on-write:
+# Pages zero filled:
+# Pages reactivated:
+# Pages purged:
+# File-backed pages:
+# Anonymous pages:
+# Pages stored in compressor:
+# Pages occupied by compressor:
+
+pfree=${vmstat[0]}
+pinact=${vmstat[2]}
+pwired=${vmstat[5]}
+ppurge=${vmstat[6]}
+pfback=${vmstat[12]}
+panon=${vmstat[13]}
+pcomp=${vmstat[15]}
+
+total_mem=$(expr $(sysctl -n hw.memsize) / 1024 / 1024)
+[[ "$UNIT" == "GB" ]] && total_mem=$((total_mem/1024))
+
+# unit in pages
+free=$((pfree + pinact))
+cached=$((pfback + ppurge))
+appmem=$((panon - ppurge))
+used=$((appmem + pwired + pcomp))
+
+# unit in ${UNIT}
+for a in free cached appmem used pfree pwired pinact panon pcomp ppurge pfback
+do
+    eval $a=$(calc_mem ${!a})
+done
+
+# Display the final result
+printf '                 total     used     free   appmem    wired   compressed\n'
+printf 'Mem:(%s)        %6u   %6u   %6u %6u     %6u %6u \n' $UNIT $total_mem $used $free $appmem $pwired $pcomp
+printf '+/- Cache:(%s)           %6u   %6u\n' $UNIT $cached $pinact
+
