@@ -1,11 +1,12 @@
 # free
 
 We can get memory usage information through `free` command in Linux.  It is not convenient to get
-the similar memory information in Mac OS for there is no `/proc/meminfo` in OSX. This project aims
-to provide the similar function just like in Linux.
+the similar information in Mac OS for there is no `/proc/meminfo`. This project aims to provide the
+similar function just like in Linux.
 
-This project works in BASH. Thanks the information and idea of
-[connectthefuture/free](https://github.com/connectthefuture/free) project.
+Thanks the information and idea of
+[connectthefuture/free](https://github.com/connectthefuture/free) project, which can only be used
+in fish shell. This project can work in BASH.
 
 ## Install
 
